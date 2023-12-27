@@ -10,6 +10,7 @@ dependencies {
     implementation(project(":slimeworldmanager-nms-v119", "reobf"))
     implementation(project(":slimeworldmanager-nms-v119-1", "reobf"))
     implementation(project(":slimeworldmanager-nms-v119-2", "reobf"))
+    implementation(project(":slimeworldmanager-nms-v120-3", "reobf"))
     implementation(project(":slimeworldmanager-classmodifierapi"))
 
     implementation("com.flowpowered:flow-nbt:2.0.2")
@@ -20,6 +21,7 @@ dependencies {
     implementation("org.spongepowered:configurate-yaml:4.1.2")
     implementation("org.bstats:bstats-bukkit:3.0.0")
     implementation("commons-io:commons-io:2.11.0")
+    implementation(project(mapOf("path" to ":slimeworldmanager-nms-v120-3")))
     compileOnly("io.papermc.paper:paper-api:1.18.2-R0.1-SNAPSHOT")
 }
 

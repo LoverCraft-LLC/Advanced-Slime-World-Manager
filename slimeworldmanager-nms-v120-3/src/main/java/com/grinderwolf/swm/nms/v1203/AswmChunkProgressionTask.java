@@ -1,4 +1,4 @@
-package com.grinderwolf.swm.nms.v1192;
+package com.grinderwolf.swm.nms.v1203;
 
 import ca.spottedleaf.concurrentutil.executor.standard.PrioritisedExecutor;
 import com.grinderwolf.swm.api.world.SlimeChunk;
@@ -18,7 +18,6 @@ import net.minecraft.world.ticks.LevelChunkTicks;
 import org.slf4j.Logger;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -266,14 +265,14 @@ public final class AswmChunkProgressionTask extends ChunkProgressionTask {
 
             // have tasks to run (at this point, it's just the POI consistency checking)
             try {
-//                if (data.tasks != null) {
-//                    for (int i = 0, len = data.tasks.size(); i < len; ++i) {
-//                        data.tasks.poll().run();
-//                    }
-//                }
+                //                if (data.tasks != null) {
+                //                    for (int i = 0, len = data.tasks.size(); i < len; ++i) {
+                //                        data.tasks.poll().run();
+                //                    }
+                //                }
 
                 SlimeChunk slimeChunk = data;
-                v1192SlimeWorld slimeWorld = ((CustomWorldServer) this.world).getSlimeWorld();
+                v1203SlimeWorld slimeWorld = ((CustomWorldServer) this.world).getSlimeWorld();
                 LevelChunk chunk;
 
                 if (slimeChunk == null) {
@@ -307,13 +306,13 @@ public final class AswmChunkProgressionTask extends ChunkProgressionTask {
 
                 List<com.flowpowered.nbt.CompoundTag> entities = slimeWorld.getEntities().get(NmsUtil.asLong(this.chunkX, this.chunkZ));
                 if (entities != null) {
-                    this.world.getEntityLookup().addLegacyChunkEntities(new ArrayList<>(
-                            EntityType.loadEntitiesRecursive(entities
-                                            .stream()
-                                            .map((tag) -> (net.minecraft.nbt.CompoundTag) Converter.convertTag(tag))
-                                            .collect(Collectors.toList()), this.world)
-                                    .toList()
-                    ));
+                    var compoundTags =  entities
+                            .stream()
+                            .map((tag) -> (net.minecraft.nbt.CompoundTag) Converter.convertTag(tag))
+                            .collect(Collectors.toList());
+
+                    var entitiesRecursive = EntityType.loadEntitiesRecursive(compoundTags, this.world).toList();
+                    this.world.getEntityLookup().addLegacyChunkEntities(entitiesRecursive, new ChunkPos(this.chunkX, this.chunkZ));
                 }
 
                 return new ImposterProtoChunk(chunk, false);
