@@ -278,7 +278,7 @@ public class v1192SlimeNMS implements SlimeNMS {
         if (extraTag.getTagType("LevelData") == Tag.TAG_COMPOUND) {
             net.minecraft.nbt.CompoundTag levelData = extraTag.getCompound("LevelData");
             int dataVersion = levelData.getTagType("DataVersion") == Tag.TAG_INT ? levelData.getInt("DataVersion") : -1;
-            Dynamic<Tag> dynamic = mcServer.getFixerUpper().update(DataFixTypes.LEVEL.getTycpe(),
+            Dynamic<Tag> dynamic = mcServer.getFixerUpper().update(DataFixTypes.LEVEL.getType(),
                     new Dynamic<>(NbtOps.INSTANCE, levelData), dataVersion, SharedConstants.getCurrentVersion()
                             .getWorldVersion());
 

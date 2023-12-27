@@ -26,8 +26,8 @@ import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraft.server.dedicated.DedicatedServerProperties;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
-import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.util.datafix.DataFixers;
+import net.minecraft.util.datafix.fixes.References;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelSettings;
@@ -35,7 +35,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
-import net.minecraft.world.level.levelgen.WorldGenSettings;
+import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.LevelVersion;
 import net.minecraft.world.level.storage.PrimaryLevelData;
@@ -54,6 +54,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.util.*;
 
 @Getter
@@ -67,7 +68,7 @@ public class v1203SlimeNMS implements SlimeNMS {
     static {
         try {
             Path path = Files.createTempDirectory("swm-" + UUID.randomUUID().toString().substring(0, 5)).toAbsolutePath();
-            CUSTOM_LEVEL_STORAGE = new LevelStorageSource(path, path, new DirectoryValidator(path), DataFixers.getDataFixer());
+            CUSTOM_LEVEL_STORAGE = new LevelStorageSource(path, path, LevelStorageSource.parseValidator(path), DataFixers.getDataFixer());
 
             FileUtils.forceDeleteOnExit(path.toFile());
 
@@ -126,7 +127,7 @@ public class v1203SlimeNMS implements SlimeNMS {
             MinecraftServer server = MinecraftServer.getServer();
 
             LevelSettings worldsettings;
-            WorldGenSettings generatorsettings;
+            WorldOptions generatorOptions;
 
             DedicatedServerProperties dedicatedserverproperties = ((DedicatedServer) server).getProperties();
 
@@ -140,9 +141,9 @@ public class v1203SlimeNMS implements SlimeNMS {
                     server.getWorldData().getDataConfiguration()
             );
 
-            generatorsettings = dedicatedserverproperties.getWorldGenSettings(server.registryAccess());
+            generatorOptions = server.getWorldData().worldGenOptions();
 
-            WorldData data = new PrimaryLevelData(worldsettings, generatorsettings, Lifecycle.stable());
+            WorldData data = new PrimaryLevelData(worldsettings, generatorOptions, PrimaryLevelData.SpecialWorldProperty.NONE, Lifecycle.stable());
 
             var field = MinecraftServer.class.getDeclaredField("m");
 
@@ -197,7 +198,7 @@ public class v1203SlimeNMS implements SlimeNMS {
 
     public void registerWorld(CustomWorldServer server) {
         MinecraftServer mcServer = MinecraftServer.getServer();
-        mcServer.initWorld(server, server.serverLevelData, mcServer.getWorldData(), server.serverLevelData.worldGenSettings());
+        mcServer.initWorld(server, server.serverLevelData, mcServer.getWorldData(), server.serverLevelData.worldGenOptions());
 
         mcServer.addLevel(server);
     }
@@ -215,7 +216,7 @@ public class v1203SlimeNMS implements SlimeNMS {
             default -> throw new IllegalArgumentException("Unknown dimension supplied");
         };
 
-        Registry<LevelStem> registryMaterials = worldDataServer.worldGenSettings().dimensions();
+        Registry<LevelStem> registryMaterials = worldDataServer.customDimensions;
         LevelStem worldDimension = registryMaterials.get(dimension);
 
 
@@ -288,8 +289,10 @@ public class v1203SlimeNMS implements SlimeNMS {
             int dataVersion = levelData.getTagType("DataVersion") == Tag.TAG_INT ? levelData.getInt("DataVersion") : -1;
 
             Dynamic<Tag> dynamic = mcServer.getFixerUpper().update(
-                    DataFixTypes.LEVEL.getType(),
-                    new Dynamic<>(NbtOps.INSTANCE, levelData), dataVersion, SharedConstants.getCurrentVersion().getDataVersion()
+                    References.LEVEL,
+                    new Dynamic<>(NbtOps.INSTANCE, levelData),
+                    dataVersion,
+                    SharedConstants.getCurrentVersion().getDataVersion().getVersion()
             );
 
             LevelVersion levelVersion = LevelVersion.parse(dynamic);
@@ -297,12 +300,9 @@ public class v1203SlimeNMS implements SlimeNMS {
 
             worldDataServer = PrimaryLevelData.parse(
                     dynamic,
-                    mcServer.getFixerUpper(),
-                    dataVersion,
-                    null,
-                    worldSettings,
-                    levelVersion,
-                    serverProps.getWorldGenSettings(mcServer.registryHolder),
+                    mcServer.getWorldData().getLevelSettings(),
+                    PrimaryLevelData.SpecialWorldProperty.NONE,
+                    mcServer.getWorldData().worldGenOptions(),
                     Lifecycle.stable()
             );
         } else {
@@ -328,7 +328,7 @@ public class v1203SlimeNMS implements SlimeNMS {
             LevelSettings worldSettings = new LevelSettings(worldName, serverProps.gamemode, false,
                     serverProps.difficulty, false, rules, mcServer.getWorldData().getDataConfiguration());
 
-            worldDataServer = new PrimaryLevelData(worldSettings, serverProps.getWorldGenSettings(mcServer.registryHolder), Lifecycle.stable());
+            worldDataServer = new PrimaryLevelData(worldSettings, mcServer.getWorldData().worldGenOptions(), PrimaryLevelData.SpecialWorldProperty.NONE, Lifecycle.stable());
         }
 
         worldDataServer.checkName(worldName);

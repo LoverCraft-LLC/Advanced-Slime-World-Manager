@@ -11,6 +11,7 @@ import com.mojang.serialization.Codec;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.SectionPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.entity.Entity;
@@ -64,7 +65,7 @@ public class NMSSlimeChunk implements SlimeChunk {
         SlimeChunkSection[] sections = new SlimeChunkSection[this.chunk.getMaxSection() - this.chunk.getMinSection() + 1];
         LevelLightEngine lightEngine = chunk.getLevel().getChunkSource().getLightEngine();
 
-        Registry<Biome> biomeRegistry = chunk.getLevel().registryAccess().registryOrThrow(Registry.BIOME_REGISTRY);
+        Registry<Biome> biomeRegistry = chunk.getLevel().registryAccess().registryOrThrow(Registries.BIOME);
 
         // Ignore deprecation, spigot only method
         Codec<PalettedContainerRO<Holder<Biome>>> codec = PalettedContainer.codecRO(biomeRegistry.asHolderIdMap(), biomeRegistry.holderByNameCodec(), PalettedContainer.Strategy.SECTION_BIOMES, biomeRegistry.getHolderOrThrow(Biomes.PLAINS));
