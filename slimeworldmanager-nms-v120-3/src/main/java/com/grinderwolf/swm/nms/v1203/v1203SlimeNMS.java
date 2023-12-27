@@ -40,7 +40,6 @@ import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.LevelVersion;
 import net.minecraft.world.level.storage.PrimaryLevelData;
 import net.minecraft.world.level.storage.WorldData;
-import net.minecraft.world.level.validation.DirectoryValidator;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -54,7 +53,6 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.PathMatcher;
 import java.util.*;
 
 @Getter
@@ -123,35 +121,28 @@ public class v1203SlimeNMS implements SlimeNMS {
 
     @Override
     public void setDefaultWorlds(SlimeWorld normalWorld, SlimeWorld netherWorld, SlimeWorld endWorld) {
-        try {
-            MinecraftServer server = MinecraftServer.getServer();
+        MinecraftServer server = MinecraftServer.getServer();
 
-            LevelSettings worldsettings;
-            WorldOptions generatorOptions;
+        LevelSettings worldsettings;
+        WorldOptions generatorOptions;
 
-            DedicatedServerProperties dedicatedserverproperties = ((DedicatedServer) server).getProperties();
+        DedicatedServerProperties dedicatedserverproperties = ((DedicatedServer) server).getProperties();
 
-            worldsettings = new LevelSettings(
-                    dedicatedserverproperties.levelName,
-                    dedicatedserverproperties.gamemode,
-                    dedicatedserverproperties.hardcore,
-                    dedicatedserverproperties.difficulty,
-                    false,
-                    new GameRules(),
-                    server.getWorldData().getDataConfiguration()
-            );
+        worldsettings = new LevelSettings(
+                dedicatedserverproperties.levelName,
+                dedicatedserverproperties.gamemode,
+                dedicatedserverproperties.hardcore,
+                dedicatedserverproperties.difficulty,
+                false,
+                new GameRules(),
+                server.getWorldData().getDataConfiguration()
+        );
 
-            generatorOptions = server.getWorldData().worldGenOptions();
+        generatorOptions = server.getWorldData().worldGenOptions();
 
-            WorldData data = new PrimaryLevelData(worldsettings, generatorOptions, PrimaryLevelData.SpecialWorldProperty.NONE, Lifecycle.stable());
+        WorldData data = new PrimaryLevelData(worldsettings, generatorOptions, PrimaryLevelData.SpecialWorldProperty.NONE, Lifecycle.stable());
 
-            var field = MinecraftServer.class.getDeclaredField("m");
-
-            field.setAccessible(true);
-            field.set(server, data); // Set default world settings ( prevent mean nullpointers)
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-        }
+        server.getWorldData().setDataConfiguration(data.getDataConfiguration());
 
         if (normalWorld != null) {
             normalWorld.getPropertyMap().setValue(SlimeProperties.ENVIRONMENT, World.Environment.NORMAL.toString().toLowerCase());
