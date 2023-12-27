@@ -1,4 +1,4 @@
-package com.grinderwolf.swm.nms.v1192;
+package com.grinderwolf.swm.nms.v1203;
 
 import com.grinderwolf.swm.clsm.CLSMBridge;
 import com.grinderwolf.swm.clsm.ClassModifier;
@@ -16,7 +16,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class CraftCLSMBridge implements CLSMBridge {
 
-    private final v1192SlimeNMS nmsInstance;
+    private final v1203SlimeNMS nmsInstance;
 
     @Override
     public Object getChunk(Object worldObject, int x, int z) {
@@ -86,7 +86,7 @@ public class CraftCLSMBridge implements CLSMBridge {
         return nmsInstance.injectDefaultWorlds();
     }
 
-    static void initialize(v1192SlimeNMS instance) {
+    static void initialize(v1203SlimeNMS instance) {
         ClassModifier.setLoader(new CraftCLSMBridge(instance));
     }
 

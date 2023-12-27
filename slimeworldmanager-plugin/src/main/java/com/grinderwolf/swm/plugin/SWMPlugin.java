@@ -186,6 +186,7 @@ public class SWMPlugin extends JavaPlugin implements SlimePlugin, Listener {
             case 3105 -> new v119SlimeNMS(isPaperMC);
             case 3117 -> new v1191SlimeNMS(isPaperMC);
             case 3120 -> new v1192SlimeNMS(isPaperMC);
+            case 3700 -> new v1192SlimeNMS(isPaperMC);
             default -> throw new InvalidVersionException("" + dataVersion);
         };
     }

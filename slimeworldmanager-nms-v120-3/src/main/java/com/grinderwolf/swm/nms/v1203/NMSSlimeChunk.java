@@ -1,4 +1,4 @@
-package com.grinderwolf.swm.nms.v1192;
+package com.grinderwolf.swm.nms.v1203;
 
 import com.flowpowered.nbt.CompoundMap;
 import com.flowpowered.nbt.CompoundTag;

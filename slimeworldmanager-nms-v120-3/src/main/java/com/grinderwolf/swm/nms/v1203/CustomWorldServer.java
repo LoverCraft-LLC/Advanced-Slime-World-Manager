@@ -1,4 +1,4 @@
-package com.grinderwolf.swm.nms.v1192;
+package com.grinderwolf.swm.nms.v1203;
 
 import ca.spottedleaf.starlight.common.light.SWMRNibbleArray;
 import com.destroystokyo.paper.util.maplist.EntityList;
@@ -25,6 +25,7 @@ import lombok.Setter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -35,10 +36,14 @@ import net.minecraft.util.ProgressListener;
 import net.minecraft.util.Unit;
 import net.minecraft.world.Container;
 import net.minecraft.world.Difficulty;
+import net.minecraft.world.RandomSequences;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.biome.*;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.BiomeSource;
+import net.minecraft.world.level.biome.Biomes;
+import net.minecraft.world.level.biome.FixedBiomeSource;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -53,7 +58,7 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.storage.PrimaryLevelData;
 import net.minecraft.world.ticks.LevelChunkTicks;
 import org.bukkit.Bukkit;
-import org.bukkit.craftbukkit.v1_19_R1.entity.CraftHumanEntity;
+import org.bukkit.craftbukkit.v1_20_R3.entity.CraftHumanEntity;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.world.WorldSaveEvent;
@@ -77,7 +82,7 @@ public class CustomWorldServer extends ServerLevel {
     private static final TicketType<Unit> SWM_TICKET = TicketType.create("swm-chunk", (a, b) -> 0);
 
     @Getter
-    private final v1192SlimeWorld slimeWorld;
+    private final v1203SlimeWorld slimeWorld;
     private final Object saveLock = new Object();
     private final BiomeSource defaultBiomeSource;
 
@@ -85,17 +90,32 @@ public class CustomWorldServer extends ServerLevel {
     @Setter
     private boolean ready = false;
 
-    public CustomWorldServer(v1192SlimeWorld world, PrimaryLevelData primaryLevelData,
+    public CustomWorldServer(v1203SlimeWorld world,
+                             PrimaryLevelData primaryLevelData,
                              ResourceKey<net.minecraft.world.level.Level> worldKey,
-                             ResourceKey<LevelStem> dimensionKey, LevelStem worldDimension,
-                             org.bukkit.World.Environment environment, org.bukkit.generator.ChunkGenerator gen,
-                             BiomeProvider biomeProvider) throws IOException {
-
-        super(MinecraftServer.getServer(), MinecraftServer.getServer().executor,
-                v1192SlimeNMS.CUSTOM_LEVEL_STORAGE.createAccess(world.getName() + UUID.randomUUID(),
-                        dimensionKey), primaryLevelData, worldKey, worldDimension,
-                MinecraftServer.getServer().progressListenerFactory.create(11), false, 0,
-                Collections.emptyList(), true, environment, gen, biomeProvider);
+                             ResourceKey<LevelStem> dimensionKey,
+                             LevelStem worldDimension,
+                             org.bukkit.World.Environment environment,
+                             org.bukkit.generator.ChunkGenerator chunkGenerator,
+                             BiomeProvider biomeProvider
+    ) throws IOException {
+        super(
+                MinecraftServer.getServer(),
+                MinecraftServer.getServer().executor,
+                v1203SlimeNMS.CUSTOM_LEVEL_STORAGE.createAccess(world.getName() + UUID.randomUUID(), dimensionKey),
+                primaryLevelData,
+                worldKey,
+                worldDimension,
+                MinecraftServer.getServer().progressListenerFactory.create(11),
+                false,
+                0,
+                Collections.emptyList(),
+                false,
+                null, // TODO fix it
+                environment,
+                chunkGenerator,
+                biomeProvider
+        );
 
         this.slimeWorld = world;
 
@@ -108,8 +128,8 @@ public class CustomWorldServer extends ServerLevel {
         this.pvpMode = propertyMap.getValue(SlimeProperties.PVP);
         {
             String biomeStr = slimeWorld.getPropertyMap().getValue(SlimeProperties.DEFAULT_BIOME);
-            ResourceKey<Biome> biomeKey = ResourceKey.create(Registry.BIOME_REGISTRY, new ResourceLocation(biomeStr));
-            Holder<Biome> defaultBiome = MinecraftServer.getServer().registryAccess().ownedRegistryOrThrow(Registry.BIOME_REGISTRY).getHolder(biomeKey).orElseThrow();
+            ResourceKey<Biome> biomeKey = ResourceKey.create(Registries.BIOME, new ResourceLocation(biomeStr));
+            Holder<Biome> defaultBiome = MinecraftServer.getServer().registryAccess().registryOrThrow(Registries.BIOME).getHolder(biomeKey).orElseThrow();
 
             this.defaultBiomeSource = new FixedBiomeSource(defaultBiome);
         }
@@ -218,7 +238,7 @@ public class CustomWorldServer extends ServerLevel {
 
         Object[] blockNibbles = null;
         Object[] skyNibbles = null;
-        if (v1192SlimeNMS.isPaperMC) {
+        if (v1203SlimeNMS.isPaperMC) {
             blockNibbles = ca.spottedleaf.starlight.common.light.StarLightEngine.getFilledEmptyLight(this);
             skyNibbles = ca.spottedleaf.starlight.common.light.StarLightEngine.getFilledEmptyLight(this);
             getServer().scheduleOnMain(() -> {
@@ -226,7 +246,7 @@ public class CustomWorldServer extends ServerLevel {
             });
         }
 
-        Registry<Biome> biomeRegistry = this.registryAccess().registryOrThrow(Registry.BIOME_REGISTRY);
+        Registry<Biome> biomeRegistry = this.registryAccess().registryOrThrow(Registries.BIOME);
         // Ignore deprecated method
 
 
@@ -237,7 +257,7 @@ public class CustomWorldServer extends ServerLevel {
 
             if (slimeSection != null) {
                 BlockState[] presetBlockStates = null;
-                if (v1192SlimeNMS.isPaperMC) {
+                if (v1203SlimeNMS.isPaperMC) {
                     NibbleArray blockLight = slimeSection.getBlockLight();
                     if (blockLight != null) {
                         blockNibbles[sectionId] = new SWMRNibbleArray(blockLight.getBacking());
@@ -274,7 +294,8 @@ public class CustomWorldServer extends ServerLevel {
                 }
 
                 if (sectionId < sections.length) {
-                    LevelChunkSection section = new LevelChunkSection(sectionId << 4, blockPalette, biomePalette);
+//                    LevelChunkSection section = new LevelChunkSection(sectionId << 4, blockPalette, biomePalette); TODO check if it is correct
+                    LevelChunkSection section = new LevelChunkSection(blockPalette, biomePalette);
                     sections[sectionId] = section;
                 }
             }
@@ -283,13 +304,13 @@ public class CustomWorldServer extends ServerLevel {
         // Keep the chunk loaded at level 33 to avoid light glitches
         // Such a high level will let the server not tick the chunk,
         // but at the same time it won't be completely unloaded from memory
-//        getChunkProvider().addTicket(SWM_TICKET, pos, 33, Unit.INSTANCE);
+        //        getChunkProvider().addTicket(SWM_TICKET, pos, 33, Unit.INSTANCE);
 
 
         LevelChunk.PostLoadProcessor loadEntities = (nmsChunk) -> {
 
             // Load tile entities
-//            System.out.println("Loading tile entities for chunk (" + pos.x + ", " + pos.z + ") on world " + slimeWorld.getName());
+            //            System.out.println("Loading tile entities for chunk (" + pos.x + ", " + pos.z + ") on world " + slimeWorld.getName());
             List<CompoundTag> tileEntities = chunk.getTileEntities();
 
             if (tileEntities != null) {
@@ -328,7 +349,7 @@ public class CustomWorldServer extends ServerLevel {
         EnumSet<Heightmap.Types> unsetHeightMaps = EnumSet.noneOf(Heightmap.Types.class);
 
         // Light
-        if (v1192SlimeNMS.isPaperMC) {
+        if (v1203SlimeNMS.isPaperMC) {
             nmsChunk.setBlockNibbles((SWMRNibbleArray[]) blockNibbles);
             nmsChunk.setSkyNibbles((SWMRNibbleArray[]) skyNibbles);
         }
@@ -440,7 +461,7 @@ public class CustomWorldServer extends ServerLevel {
         for (BlockEntity tileentity : chunk.getBlockEntities().values()) {
             if (tileentity instanceof Container) {
                 // Paper start - this area looks like it can load chunks, change the behavior
-                // chests for example can apply physics to the world
+                // chests for example can apply physics to the world,
                 // so instead we just change the active container and call the event
                 for (HumanEntity h : Lists.newArrayList(((Container) tileentity).getViewers())) {
                     ((CraftHumanEntity) h).getHandle().closeUnloadedInventory(InventoryCloseEvent.Reason.UNLOADED); // Paper

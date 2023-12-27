@@ -1,4 +1,4 @@
-package com.grinderwolf.swm.nms.v1192;
+package com.grinderwolf.swm.nms.v1203;
 
 import com.flowpowered.nbt.CompoundTag;
 import com.grinderwolf.swm.api.loaders.SlimeLoader;
@@ -16,6 +16,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.core.Holder;
 import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
@@ -39,14 +40,15 @@ import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.LevelVersion;
 import net.minecraft.world.level.storage.PrimaryLevelData;
 import net.minecraft.world.level.storage.WorldData;
+import net.minecraft.world.level.validation.DirectoryValidator;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_19_R1.CraftServer;
-import org.bukkit.craftbukkit.v1_19_R1.CraftWorld;
-import org.bukkit.craftbukkit.v1_19_R1.scoreboard.CraftScoreboardManager;
+import org.bukkit.craftbukkit.v1_20_R3.CraftServer;
+import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
+import org.bukkit.craftbukkit.v1_20_R3.scoreboard.CraftScoreboardManager;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -55,7 +57,7 @@ import java.nio.file.Path;
 import java.util.*;
 
 @Getter
-public class v1192SlimeNMS implements SlimeNMS {
+public class v1203SlimeNMS implements SlimeNMS {
 
     private static final Logger LOGGER = LogManager.getLogger("SWM");
     public static boolean isPaperMC;
@@ -65,7 +67,7 @@ public class v1192SlimeNMS implements SlimeNMS {
     static {
         try {
             Path path = Files.createTempDirectory("swm-" + UUID.randomUUID().toString().substring(0, 5)).toAbsolutePath();
-            CUSTOM_LEVEL_STORAGE = new LevelStorageSource(path, path, DataFixers.getDataFixer());
+            CUSTOM_LEVEL_STORAGE = new LevelStorageSource(path, path, new DirectoryValidator(path), DataFixers.getDataFixer());
 
             FileUtils.forceDeleteOnExit(path.toFile());
 
@@ -83,7 +85,7 @@ public class v1192SlimeNMS implements SlimeNMS {
     private CustomWorldServer defaultEndWorld;
 
 
-    public v1192SlimeNMS(boolean isPaper) {
+    public v1203SlimeNMS(boolean isPaper) {
         try {
             isPaperMC = isPaper;
             CraftCLSMBridge.initialize(this);
@@ -115,7 +117,7 @@ public class v1192SlimeNMS implements SlimeNMS {
         }
 
         injectFakeDimensions = false;
-        return new MappedRegistry<>(Registry.ACTIVITY_REGISTRY, Lifecycle.stable(), null);
+        return new MappedRegistry<>(Registries.ACTIVITY, Lifecycle.stable());
     }
 
     @Override
@@ -128,10 +130,16 @@ public class v1192SlimeNMS implements SlimeNMS {
 
             DedicatedServerProperties dedicatedserverproperties = ((DedicatedServer) server).getProperties();
 
-            worldsettings = new LevelSettings(dedicatedserverproperties.levelName,
-                    dedicatedserverproperties.gamemode, dedicatedserverproperties.hardcore, dedicatedserverproperties.difficulty,
-                    false, new GameRules(),
-                    server.datapackconfiguration);
+            worldsettings = new LevelSettings(
+                    dedicatedserverproperties.levelName,
+                    dedicatedserverproperties.gamemode,
+                    dedicatedserverproperties.hardcore,
+                    dedicatedserverproperties.difficulty,
+                    false,
+                    new GameRules(),
+                    server.getWorldData().getDataConfiguration()
+            );
+
             generatorsettings = dedicatedserverproperties.getWorldGenSettings(server.registryAccess());
 
             WorldData data = new PrimaryLevelData(worldsettings, generatorsettings, Lifecycle.stable());
@@ -195,7 +203,7 @@ public class v1192SlimeNMS implements SlimeNMS {
     }
 
     private CustomWorldServer createCustomWorld(SlimeWorld world, @Nullable ResourceKey<Level> dimensionOverride) {
-        v1192SlimeWorld nmsWorld = (v1192SlimeWorld) world;
+        v1203SlimeWorld nmsWorld = (v1203SlimeWorld) world;
         String worldName = world.getName();
 
         PrimaryLevelData worldDataServer = createWorldData(world);
@@ -213,7 +221,7 @@ public class v1192SlimeNMS implements SlimeNMS {
 
         Holder<DimensionType> type = null;
         {
-            DimensionType predefinedType = worldDimension.typeHolder().value();
+            DimensionType predefinedType = Objects.requireNonNull(worldDimension).type().value();
 
             OptionalLong fixedTime = switch (environment) {
                 case NORMAL -> OptionalLong.empty();
@@ -242,7 +250,7 @@ public class v1192SlimeNMS implements SlimeNMS {
 
         ChunkGenerator chunkGenerator = worldDimension.generator();
 
-        ResourceKey<Level> worldKey = dimensionOverride == null ? ResourceKey.create(Registry.DIMENSION_REGISTRY,
+        ResourceKey<Level> worldKey = dimensionOverride == null ? ResourceKey.create(Registries.DIMENSION,
                 new ResourceLocation(worldName.toLowerCase(Locale.ENGLISH))) : dimensionOverride;
 
         CustomWorldServer level;
@@ -278,15 +286,25 @@ public class v1192SlimeNMS implements SlimeNMS {
         if (extraTag.getTagType("LevelData") == Tag.TAG_COMPOUND) {
             net.minecraft.nbt.CompoundTag levelData = extraTag.getCompound("LevelData");
             int dataVersion = levelData.getTagType("DataVersion") == Tag.TAG_INT ? levelData.getInt("DataVersion") : -1;
-            Dynamic<Tag> dynamic = mcServer.getFixerUpper().update(DataFixTypes.LEVEL.getTycpe(),
-                    new Dynamic<>(NbtOps.INSTANCE, levelData), dataVersion, SharedConstants.getCurrentVersion()
-                            .getWorldVersion());
+
+            Dynamic<Tag> dynamic = mcServer.getFixerUpper().update(
+                    DataFixTypes.LEVEL.getType(),
+                    new Dynamic<>(NbtOps.INSTANCE, levelData), dataVersion, SharedConstants.getCurrentVersion().getDataVersion()
+            );
 
             LevelVersion levelVersion = LevelVersion.parse(dynamic);
-            LevelSettings worldSettings = LevelSettings.parse(dynamic, mcServer.datapackconfiguration);
+            LevelSettings worldSettings = LevelSettings.parse(dynamic, mcServer.getWorldData().getDataConfiguration());
 
-            worldDataServer = PrimaryLevelData.parse(dynamic, mcServer.getFixerUpper(), dataVersion, null,
-                    worldSettings, levelVersion, serverProps.getWorldGenSettings(mcServer.registryHolder), Lifecycle.stable());
+            worldDataServer = PrimaryLevelData.parse(
+                    dynamic,
+                    mcServer.getFixerUpper(),
+                    dataVersion,
+                    null,
+                    worldSettings,
+                    levelVersion,
+                    serverProps.getWorldGenSettings(mcServer.registryHolder),
+                    Lifecycle.stable()
+            );
         } else {
 
             // Game rules
@@ -308,7 +326,7 @@ public class v1192SlimeNMS implements SlimeNMS {
             });
 
             LevelSettings worldSettings = new LevelSettings(worldName, serverProps.gamemode, false,
-                    serverProps.difficulty, false, rules, mcServer.datapackconfiguration);
+                    serverProps.difficulty, false, rules, mcServer.getWorldData().getDataConfiguration());
 
             worldDataServer = new PrimaryLevelData(worldSettings, serverProps.getWorldGenSettings(mcServer.registryHolder), Lifecycle.stable());
         }
@@ -322,6 +340,6 @@ public class v1192SlimeNMS implements SlimeNMS {
 
     @Override
     public SlimeLoadedWorld createSlimeWorld(SlimeLoader loader, String worldName, Long2ObjectOpenHashMap<SlimeChunk> chunks, CompoundTag extraCompound, List<CompoundTag> mapList, byte worldVersion, SlimePropertyMap worldPropertyMap, boolean readOnly, boolean lock, Long2ObjectOpenHashMap<List<CompoundTag>> entities) {
-        return new v1192SlimeWorld(this, worldVersion, loader, worldName, chunks, extraCompound, worldPropertyMap, readOnly, lock, entities);
+        return new v1203SlimeWorld(this, worldVersion, loader, worldName, chunks, extraCompound, worldPropertyMap, readOnly, lock, entities);
     }
 }
